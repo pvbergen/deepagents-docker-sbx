@@ -140,53 +140,6 @@ def test_create_applies_resource_limits_and_extra_args(
 
 @patch("deepagents_docker_sbx.backend.run_sbx")
 @patch("deepagents_docker_sbx.backend.sbx_unavailable_reason", return_value=None)
-def test_fractional_cpus_round_up_with_warning(
-    _available: MagicMock,
-    run_sbx: MagicMock,
-    tmp_path: Path,
-) -> None:
-    run_sbx.return_value = _sbx_run_ok()
-
-    with pytest.warns(UserWarning, match="whole CPUs"):
-        sandbox = DockerSBX(shared_dir=tmp_path, cpus=0.5)
-    try:
-        assert _flag_value(_create_args(run_sbx), "--cpus") == "1"
-    finally:
-        sandbox.close()
-
-
-@patch("deepagents_docker_sbx.backend.run_sbx")
-@patch("deepagents_docker_sbx.backend.sbx_unavailable_reason", return_value=None)
-def test_pids_limit_warns_and_is_ignored(
-    _available: MagicMock,
-    run_sbx: MagicMock,
-    tmp_path: Path,
-) -> None:
-    run_sbx.return_value = _sbx_run_ok()
-
-    with pytest.warns(UserWarning, match="pids_limit is not supported"):
-        sandbox = DockerSBX(shared_dir=tmp_path, pids_limit=128)
-    try:
-        assert not any(arg.startswith("--pids") for arg in _create_args(run_sbx))
-    finally:
-        sandbox.close()
-
-
-@pytest.mark.filterwarnings("error")
-@patch("deepagents_docker_sbx.backend.run_sbx")
-@patch("deepagents_docker_sbx.backend.sbx_unavailable_reason", return_value=None)
-def test_default_options_do_not_warn(
-    _available: MagicMock,
-    run_sbx: MagicMock,
-    tmp_path: Path,
-) -> None:
-    run_sbx.return_value = _sbx_run_ok()
-
-    DockerSBX(shared_dir=tmp_path).close()
-
-
-@patch("deepagents_docker_sbx.backend.run_sbx")
-@patch("deepagents_docker_sbx.backend.sbx_unavailable_reason", return_value=None)
 def test_raises_when_sandbox_create_fails(
     _available: MagicMock,
     run_sbx: MagicMock,
@@ -202,15 +155,15 @@ def test_raises_when_sandbox_create_fails(
     ("kwargs", "match"),
     [
         ({"timeout": 0}, "timeout must be positive"),
-        ({"cpus": 0}, "cpus must be positive"),
-        ({"pids_limit": -1}, "pids_limit must be positive"),
+        ({"cpus": 0}, "cpus must be a positive whole number"),
+        ({"cpus": 1.5}, "cpus must be a positive whole number"),
         ({"max_output_bytes": 0}, "max_output_bytes must be positive"),
     ],
 )
 @patch("deepagents_docker_sbx.backend.sbx_unavailable_reason", return_value=None)
 def test_constructor_rejects_invalid_limits(
     _available: MagicMock,
-    kwargs: dict[str, int],
+    kwargs: dict[str, float],
     match: str,
 ) -> None:
     with pytest.raises(ValueError, match=match):

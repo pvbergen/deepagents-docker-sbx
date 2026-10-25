@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="https://github.com/andybbruno/deepagents-docker/blob/master/assets/deepagents-docker-banner.png?raw=true"  width="800" />
-</p>
 <div align="center">
   <h3><a href="https://docs.docker.com/ai/sandboxes/">Docker Sandboxes</a> (<code>sbx</code>) backend for <a href="https://github.com/langchain-ai/deepagents">Deep Agents</a>.</h3>
 </div>
@@ -16,8 +13,6 @@
 
 ## deepagents-docker-sbx
 Run the shell commands of [Deep Agents](https://github.com/langchain-ai/deepagents) in an isolated [Docker Sandbox](https://docs.docker.com/ai/sandboxes/) microVM instead of on your host machine.
-
-This is a rework of [deepagents-docker](https://github.com/andybbruno/deepagents-docker): instead of `docker run` containers, every agent command runs inside an `sbx` sandbox.
 
 ## Quickstart
 
@@ -50,7 +45,7 @@ result = agent.invoke({"messages": "Research the latest trends in AI and write a
 
 ## Configuration
 
-The constructor keeps the options of `deepagents-docker`. Each is mapped to its `sbx create` equivalent; options that sbx cannot honor emit a `UserWarning` instead of failing:
+Every option is optional. Most map directly to an `sbx create` flag:
 
 ```python
 DockerSBX(
@@ -62,7 +57,6 @@ DockerSBX(
                                        # and the command is killed once it is reached
     memory=None,                       # e.g. "1g"; None → sbx default (minimum 512m)
     cpus=None,                         # whole CPUs; None → sbx default
-    pids_limit=None,                   # not supported by sbx (warns if set)
     auto_remove=True,                  # remove the sandbox on close(); False → only stop it
     extra_run_args=["--env", "FOO=bar"],  # extra `sbx create` flags
 )
@@ -73,8 +67,7 @@ DockerSBX(
 | `image` | Passed as `sbx create --template`. Defaults to the `shell` agent's template (`docker/sandbox-templates:shell`, Ubuntu with Python, uv, git and curl). Custom images must meet the [sbx base-image requirements](https://docs.docker.com/ai/sandboxes/customize/templates/): a non-root `agent` user (UID 1000, home `/home/agent`), `/bin/sh` and `/bin/bash`, curl, git and CA certificates. Plain images such as `python:3.12-bookworm` do not qualify. |
 | `allow_outbound_traffic` | `False` adds `--deny-network "**"`, a deny-all rule scoped to this sandbox. `True` leaves egress to your global `sbx policy`; it cannot widen what that policy allows. |
 | `memory` | `--memory`. sbx enforces a 512 MiB minimum. |
-| `cpus` | `--cpus`. sbx allocates whole CPUs, so fractions are rounded up with a warning. |
-| `pids_limit` | No sbx equivalent; a warning is emitted and the value is ignored. |
+| `cpus` | `--cpus`. Must be a positive whole number. |
 | `extra_run_args` | Appended to `sbx create` before the agent and workspace arguments. |
 
 > [!NOTE]
@@ -87,7 +80,7 @@ Creating a `DockerSBX` runs `sbx create --name deepagents-<id> shell <shared_dir
 
 The only link between the sandbox and your machine is **shared_dir**: sbx mounts it at the **same absolute path** inside the sandbox, and every command runs with that directory as its working directory. Commands run as the sandbox's non-root `agent` user (with `sudo` available).
 
-Network access is governed by sbx policies (`sbx policy ls`), not by Docker networks. Blocked HTTP(S) requests are answered by the sbx proxy with **HTTP 403** rather than failing to connect, so check status codes (for example `curl -f`) when testing access.
+Network access is governed by sbx policies (`sbx policy ls`). Blocked HTTP(S) requests are answered by the sbx proxy with **HTTP 403** rather than failing to connect, so check status codes (for example `curl -f`) when testing access.
 
 What stays on the host: the agent process itself (the LangGraph loop, model calls and their API keys, and any custom Python tools) runs where you start it. The built-in file tools (`read_file`, `write_file`, `edit_file`, `ls`, `glob`, `grep`) also run on the host, but are confined to `shared_dir` (paths are resolved inside it and symlinks are not followed), so they see the same files as the sandbox.
 

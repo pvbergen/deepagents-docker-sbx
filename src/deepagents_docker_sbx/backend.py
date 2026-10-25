@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import atexit
-import math
 import tempfile
 import uuid
-import warnings
 import weakref
 from collections.abc import Callable
 from functools import partial
@@ -28,7 +26,7 @@ SBX_CHECK_TIMEOUT = 30
 SBX_CREATE_TIMEOUT = 600
 CLEANUP_TIMEOUT = 60
 
-# `sbx exec` behaves like `docker exec`: each exec is its own session/process-group leader, so
+# Each `sbx exec` is its own session/process-group leader, so
 # the wrapper records its PID (== the process group id) and a later `kill -9 -<pgid>` reaps the
 # whole tree, including children reparented to PID 1. $1 is the pid file, $2 the user command.
 _EXEC_WRAPPER = """
@@ -68,8 +66,7 @@ class DockerSBX(FilesystemBackend, SandboxBackendProtocol):
         timeout: int = DEFAULT_EXECUTE_TIMEOUT,
         max_output_bytes: int = 100_000,
         memory: str | None = None,
-        cpus: float | None = None,
-        pids_limit: int | None = None,
+        cpus: int | None = None,
         auto_remove: bool = True,
         extra_run_args: list[str] | None = None,
     ) -> None:
@@ -90,40 +87,19 @@ class DockerSBX(FilesystemBackend, SandboxBackendProtocol):
                 unbounded output cannot exhaust host memory.
             memory: Sandbox memory limit (for example ``"1g"``; sbx requires at least
                 ``512m``). Defaults to the sbx default.
-            cpus: Number of CPUs. sbx only accepts whole CPUs, so fractions are rounded up with
-                a warning. Defaults to the sbx default.
-            pids_limit: Not supported by sbx; setting it emits a warning and is ignored.
+            cpus: Number of whole CPUs. Defaults to the sbx default.
             auto_remove: Remove the sandbox on ``close()``; otherwise it is only stopped.
             extra_run_args: Additional ``sbx create`` flags (for example ``["-e", "FOO=bar"]``).
         """
         if timeout <= 0:
             msg = f"timeout must be positive, got {timeout}"
             raise ValueError(msg)
-        if cpus is not None and cpus <= 0:
-            msg = f"cpus must be positive, got {cpus}"
-            raise ValueError(msg)
-        if pids_limit is not None and pids_limit <= 0:
-            msg = f"pids_limit must be positive, got {pids_limit}"
+        if cpus is not None and (not isinstance(cpus, int) or cpus <= 0):
+            msg = f"cpus must be a positive whole number, got {cpus}"
             raise ValueError(msg)
         if max_output_bytes <= 0:
             msg = f"max_output_bytes must be positive, got {max_output_bytes}"
             raise ValueError(msg)
-
-        if pids_limit is not None:
-            warnings.warn(
-                "pids_limit is not supported by sbx sandboxes and is ignored.",
-                UserWarning,
-                stacklevel=2,
-            )
-        self._cpus: int | None = None
-        if cpus is not None:
-            self._cpus = math.ceil(cpus)
-            if self._cpus != cpus:
-                warnings.warn(
-                    f"sbx only allocates whole CPUs; rounding cpus={cpus} up to {self._cpus}.",
-                    UserWarning,
-                    stacklevel=2,
-                )
 
         self._owns_shared_dir = shared_dir is None
         self._shared_dir = Path(
@@ -137,6 +113,7 @@ class DockerSBX(FilesystemBackend, SandboxBackendProtocol):
         self._default_timeout = timeout
         self._max_output_bytes = max_output_bytes
         self._memory = memory
+        self._cpus = cpus
         self._allow_outbound_traffic = allow_outbound_traffic
         self._auto_remove = auto_remove
         self._extra_run_args = list(extra_run_args or [])
