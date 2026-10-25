@@ -202,6 +202,8 @@ DEEPAGENTS_SBX_INTEGRATION=1 uv run pytest -m sbx      # integration tests again
 
 The integration tests need a machine where sbx can start sandboxes (hardware virtualization, `sbx login`, and an initialized `sbx policy`); they are skipped otherwise.
 
+CI (`.github/workflows/tests.yml`) runs `ruff` and the unit tests on Python 3.12 and 3.13 for every pull request. The integration tests skip there, so run them locally before opening a PR.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to open an issue or submit a pull request.
