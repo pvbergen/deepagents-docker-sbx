@@ -15,7 +15,7 @@
 </div>
 
 ## deepagents-docker-sbx
-Run [Deep Agents](https://github.com/langchain-ai/deepagents) in an isolated [Docker Sandbox](https://docs.docker.com/ai/sandboxes/) microVM without compromising your host machine.
+Run the shell commands of [Deep Agents](https://github.com/langchain-ai/deepagents) in an isolated [Docker Sandbox](https://docs.docker.com/ai/sandboxes/) microVM instead of on your host machine.
 
 This is a rework of [deepagents-docker](https://github.com/andybbruno/deepagents-docker): instead of `docker run` containers, every agent command runs inside an `sbx` sandbox.
 
@@ -88,6 +88,8 @@ Creating a `DockerSBX` runs `sbx create --name deepagents-<id> shell <shared_dir
 The only link between the sandbox and your machine is **shared_dir**: sbx mounts it at the **same absolute path** inside the sandbox, and every command runs with that directory as its working directory. Commands run as the sandbox's non-root `agent` user (with `sudo` available).
 
 Network access is governed by sbx policies (`sbx policy ls`), not by Docker networks. Blocked HTTP(S) requests are answered by the sbx proxy with **HTTP 403** rather than failing to connect, so check status codes (for example `curl -f`) when testing access.
+
+What stays on the host: the agent process itself (the LangGraph loop, model calls and their API keys, and any custom Python tools) runs where you start it. The built-in file tools (`read_file`, `write_file`, `edit_file`, `ls`, `glob`, `grep`) also run on the host, but are confined to `shared_dir` (paths are resolved inside it and symlinks are not followed), so they see the same files as the sandbox.
 
 > [!NOTE]
 > The sandbox is removed automatically when the Python process exits (`atexit`). Use a context manager (below) to tear down earlier. `sbx ls` shows any sandboxes still around.
