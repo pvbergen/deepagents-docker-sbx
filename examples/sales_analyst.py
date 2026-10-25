@@ -8,9 +8,9 @@ Finally, it will run the script to generate the report as well as the images.
 
 from deepagents import create_deep_agent
 
-from deepagents_docker import DockerSandbox
+from deepagents_docker_sbx import DockerSBX
 
-backend = DockerSandbox(
+backend = DockerSBX(
     shared_dir="examples/data",
     allow_outbound_traffic=True,
 )

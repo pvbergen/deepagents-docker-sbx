@@ -6,9 +6,9 @@ This example agent finds the best neapolitan pizza recipe on the web and writes 
 
 from deepagents import create_deep_agent
 
-from deepagents_docker import DockerSandbox
+from deepagents_docker_sbx import DockerSBX
 
-backend = DockerSandbox(
+backend = DockerSBX(
     shared_dir="examples/data",
     allow_outbound_traffic=True,
 )
