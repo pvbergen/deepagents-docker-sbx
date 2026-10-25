@@ -87,7 +87,7 @@ Creating a `DockerSBX` runs `sbx create --name deepagents-<id> shell <shared_dir
 
 The only link between the sandbox and your machine is **shared_dir**: sbx mounts it at the **same absolute path** inside the sandbox, and every command runs with that directory as its working directory. Commands run as the sandbox's non-root `agent` user (with `sudo` available).
 
-Network access is governed by sbx policies (`sbx policy ls`), not by Docker networks.
+Network access is governed by sbx policies (`sbx policy ls`), not by Docker networks. Blocked HTTP(S) requests are answered by the sbx proxy with **HTTP 403** rather than failing to connect, so check status codes (for example `curl -f`) when testing access.
 
 > [!NOTE]
 > The sandbox is removed automatically when the Python process exits (`atexit`). Use a context manager (below) to tear down earlier. `sbx ls` shows any sandboxes still around.

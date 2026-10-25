@@ -91,13 +91,16 @@ def test_nonzero_exit_and_stderr(sandbox: DockerSBX) -> None:
 
 
 def test_timeout_kills_the_process_group(sandbox: DockerSBX) -> None:
-    marker = f"deepagents-timeout-{time.monotonic_ns()}"
+    pid_file = f"timeout-{time.monotonic_ns()}.pid"
 
-    result = sandbox.execute(f"sh -c 'sleep 300 # {marker}' & wait", timeout=2)
+    # The backgrounded `sleep` records its own PID, so the check below targets exactly that
+    # process (matching on command lines would also hit the checking command's own shells).
+    result = sandbox.execute(f"sleep 300 & echo $! > {pid_file}; wait", timeout=2)
 
     assert result.exit_code == 124
-    survivors = sandbox.execute(f"pgrep -f {marker} || true")
-    assert survivors.output.strip() in ("", "<no output>")
+    pid = (sandbox.shared_dir / pid_file).read_text().strip()
+    check = sandbox.execute(f"kill -0 {pid} 2>/dev/null && echo alive || echo gone")
+    assert check.output.strip() == "gone"
 
 
 def test_output_cap_truncates_and_stops_command(tmp_path: Path) -> None:
@@ -108,10 +111,29 @@ def test_output_cap_truncates_and_stops_command(tmp_path: Path) -> None:
     assert "terminated after exceeding the output limit" in result.output
 
 
+# The sbx proxy answers blocked HTTP(S) requests with a 403 rather than refusing the
+# connection, so curl needs `-f` to turn a block into a nonzero exit code.
+_PYPI_CURL = "curl -fsS --max-time 10 -o /dev/null https://pypi.org/simple/"
+
+
+def test_outbound_traffic_allowed_by_default(tmp_path: Path) -> None:
+    with DockerSBX(shared_dir=tmp_path) as backend:
+        status = backend.execute(
+            "curl -sS --max-time 10 -o /dev/null -w '%{http_code}' https://pypi.org/simple/"
+        )
+        if status.output.strip() == "403":
+            pytest.skip("the global sbx policy blocks pypi.org; allow it to run this control")
+        result = backend.execute(_PYPI_CURL)
+
+    assert result.exit_code == 0, result.output
+
+
 def test_outbound_traffic_can_be_denied(tmp_path: Path) -> None:
     with DockerSBX(shared_dir=tmp_path, allow_outbound_traffic=False) as backend:
-        result = backend.execute("curl -sS --max-time 10 -o /dev/null https://pypi.org/simple/")
+        rules = run_sbx(["policy", "ls", backend.sandbox_name, "--wide"], timeout=30)
+        result = backend.execute(_PYPI_CURL)
 
+    assert "**" in rules.stdout, rules.stdout
     assert result.exit_code != 0
 
 
