@@ -60,7 +60,7 @@ class DockerSBX(FilesystemBackend, SandboxBackendProtocol):
     def __init__(
         self,
         *,
-        image: str | None = None,
+        template: str | None = None,
         allow_outbound_traffic: bool = True,
         shared_dir: str | Path | None = None,
         timeout: int = DEFAULT_EXECUTE_TIMEOUT,
@@ -68,15 +68,16 @@ class DockerSBX(FilesystemBackend, SandboxBackendProtocol):
         memory: str | None = None,
         cpus: int | None = None,
         auto_remove: bool = True,
-        extra_run_args: list[str] | None = None,
+        extra_create_args: list[str] | None = None,
     ) -> None:
         """Create an sbx sandbox and shared directory.
 
         Args:
-            image: Sandbox template image (``sbx create -t``). Defaults to the template of the
-                ``shell`` agent. Custom images must meet the sbx base-image requirements (an
-                ``agent`` user with UID 1000, ``/bin/sh`` and ``/bin/bash``, curl, git and CA
-                certificates); plain images such as ``python:3.12-bookworm`` do not.
+            template: Sandbox template image (``sbx create --template``). Defaults to the
+                template of the ``shell`` agent. Custom images must meet the sbx base-image
+                requirements (an ``agent`` user with UID 1000, ``/bin/sh`` and ``/bin/bash``,
+                curl, git and CA certificates); plain images such as ``python:3.12-bookworm``
+                do not.
             allow_outbound_traffic: ``False`` adds a per-sandbox deny-all network rule. ``True``
                 leaves egress to the global ``sbx policy``, which this option cannot widen.
             shared_dir: Host directory mounted into the sandbox at the same absolute path and
@@ -89,7 +90,7 @@ class DockerSBX(FilesystemBackend, SandboxBackendProtocol):
                 ``512m``). Defaults to the sbx default.
             cpus: Number of whole CPUs. Defaults to the sbx default.
             auto_remove: Remove the sandbox on ``close()``; otherwise it is only stopped.
-            extra_run_args: Additional ``sbx create`` flags (for example ``["-e", "FOO=bar"]``).
+            extra_create_args: Additional ``sbx create`` flags (for example ``["-e", "FOO=bar"]``).
         """
         if timeout <= 0:
             msg = f"timeout must be positive, got {timeout}"
@@ -109,14 +110,14 @@ class DockerSBX(FilesystemBackend, SandboxBackendProtocol):
 
         super().__init__(root_dir=self._shared_dir, virtual_mode=True)
 
-        self._image = image
+        self._template = template
         self._default_timeout = timeout
         self._max_output_bytes = max_output_bytes
         self._memory = memory
         self._cpus = cpus
         self._allow_outbound_traffic = allow_outbound_traffic
         self._auto_remove = auto_remove
-        self._extra_run_args = list(extra_run_args or [])
+        self._extra_create_args = list(extra_create_args or [])
 
         self._sandbox_id: str = f"{uuid.uuid4().hex[:12]}"
         self._sandbox_name = f"deepagents-{self._sandbox_id}"
@@ -144,15 +145,15 @@ class DockerSBX(FilesystemBackend, SandboxBackendProtocol):
 
     def _create_args(self) -> list[str]:
         args = ["create", "--name", self._sandbox_name, "--no-progress"]
-        if self._image is not None:
-            args += ["--template", self._image]
+        if self._template is not None:
+            args += ["--template", self._template]
         if self._memory is not None:
             args += ["--memory", self._memory]
         if self._cpus is not None:
             args += ["--cpus", str(self._cpus)]
         if not self._allow_outbound_traffic:
             args += ["--deny-network", "**"]
-        return [*args, *self._extra_run_args, SANDBOX_AGENT, str(self._shared_dir)]
+        return [*args, *self._extra_create_args, SANDBOX_AGENT, str(self._shared_dir)]
 
     def _start_sandbox(self) -> None:
         reason = sbx_unavailable_reason(timeout=SBX_CHECK_TIMEOUT)

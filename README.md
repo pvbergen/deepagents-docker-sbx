@@ -49,7 +49,7 @@ Every option is optional. Most map directly to an `sbx create` flag:
 
 ```python
 DockerSBX(
-    image=None,                        # sbx template image; None → the `shell` agent's template
+    template=None,                     # sbx template image; None → the `shell` agent's template
     allow_outbound_traffic=True,       # False → per-sandbox deny-all network rule
     shared_dir="/path/to/project",     # host folder mounted into the sandbox; see note below
     timeout=120,                       # per-command timeout (seconds)
@@ -58,17 +58,17 @@ DockerSBX(
     memory=None,                       # e.g. "1g"; None → sbx default (minimum 512m)
     cpus=None,                         # whole CPUs; None → sbx default
     auto_remove=True,                  # remove the sandbox on close(); False → only stop it
-    extra_run_args=["--env", "FOO=bar"],  # extra `sbx create` flags
+    extra_create_args=["--env", "FOO=bar"],  # extra `sbx create` flags
 )
 ```
 
 | Option | sbx behavior |
 |---|---|
-| `image` | Passed as `sbx create --template`. Defaults to the `shell` agent's template (`docker/sandbox-templates:shell`, Ubuntu with Python, uv, git and curl). Custom images must meet the [sbx base-image requirements](https://docs.docker.com/ai/sandboxes/customize/templates/): a non-root `agent` user (UID 1000, home `/home/agent`), `/bin/sh` and `/bin/bash`, curl, git and CA certificates. Plain images such as `python:3.12-bookworm` do not qualify. |
+| `template` | Passed as `sbx create --template`. Defaults to the `shell` agent's template (`docker/sandbox-templates:shell`, Ubuntu with Python, uv, git and curl). Custom images must meet the [sbx base-image requirements](https://docs.docker.com/ai/sandboxes/customize/templates/): a non-root `agent` user (UID 1000, home `/home/agent`), `/bin/sh` and `/bin/bash`, curl, git and CA certificates. Plain images such as `python:3.12-bookworm` do not qualify. |
 | `allow_outbound_traffic` | `False` adds `--deny-network "**"`, a deny-all rule scoped to this sandbox. `True` leaves egress to your global `sbx policy`; it cannot widen what that policy allows. |
 | `memory` | `--memory`. sbx enforces a 512 MiB minimum. |
 | `cpus` | `--cpus`. Must be a positive whole number. |
-| `extra_run_args` | Appended to `sbx create` before the agent and workspace arguments. |
+| `extra_create_args` | Appended to `sbx create` before the agent and workspace arguments. |
 
 > [!NOTE]
 > Pass an explicit `shared_dir` path to keep files after the sandbox is removed. When omitted, a temporary directory is created within the host filesystem and **removed when the DockerSBX is closed**.
@@ -208,3 +208,7 @@ Sandboxes are microVMs, which isolate more strongly than containers, but treat t
 ## License
 
 MIT — [LICENSE](LICENSE).
+
+## Acknowledgements
+
+This project started from [deepagents-docker](https://github.com/andybbruno/deepagents-docker) by [andybbruno](https://github.com/andybbruno), which runs Deep Agents commands in Docker containers. Thank you for the groundwork!

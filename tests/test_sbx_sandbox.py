@@ -64,7 +64,7 @@ def test_create_uses_shell_agent_with_shared_dir_workspace(
 
 @patch("deepagents_docker_sbx.backend.run_sbx")
 @patch("deepagents_docker_sbx.backend.sbx_unavailable_reason", return_value=None)
-def test_create_defaults_leave_sizing_image_and_network_to_sbx(
+def test_create_defaults_leave_sizing_template_and_network_to_sbx(
     _available: MagicMock,
     run_sbx: MagicMock,
     tmp_path: Path,
@@ -82,14 +82,14 @@ def test_create_defaults_leave_sizing_image_and_network_to_sbx(
 
 @patch("deepagents_docker_sbx.backend.run_sbx")
 @patch("deepagents_docker_sbx.backend.sbx_unavailable_reason", return_value=None)
-def test_create_passes_custom_image_as_template(
+def test_create_passes_template(
     _available: MagicMock,
     run_sbx: MagicMock,
     tmp_path: Path,
 ) -> None:
     run_sbx.return_value = _sbx_run_ok()
 
-    sandbox = DockerSBX(shared_dir=tmp_path, image="my-org/sandbox:1")
+    sandbox = DockerSBX(shared_dir=tmp_path, template="my-org/sandbox:1")
     try:
         assert _flag_value(_create_args(run_sbx), "--template") == "my-org/sandbox:1"
     finally:
@@ -125,7 +125,7 @@ def test_create_applies_resource_limits_and_extra_args(
         shared_dir=tmp_path,
         memory="1g",
         cpus=2,
-        extra_run_args=["--env", "FOO=bar"],
+        extra_create_args=["--env", "FOO=bar"],
     )
     try:
         args = _create_args(run_sbx)
@@ -194,7 +194,7 @@ def test_execute_runs_command_in_sandbox(
         exec=SBXRunResult(returncode=0, stdout="hello\n", stderr=""),
     )
 
-    sandbox = DockerSBX(shared_dir=tmp_path, image="test-image:local")
+    sandbox = DockerSBX(shared_dir=tmp_path, template="test-image:local")
     try:
         result = sandbox.execute("echo hello")
         assert result.exit_code == 0
@@ -393,7 +393,7 @@ def test_write_and_read_via_virtual_paths(
 ) -> None:
     run_sbx.return_value = _sbx_run_ok()
 
-    sandbox = DockerSBX(shared_dir=tmp_path, image="test-image:local")
+    sandbox = DockerSBX(shared_dir=tmp_path, template="test-image:local")
     try:
         write_result = sandbox.write("/notes.txt", "alpha\n")
         assert write_result.error is None
